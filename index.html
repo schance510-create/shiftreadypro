@@ -1166,7 +1166,7 @@ async function addEmployee() {
   document.getElementById('new-emp-name').value='';
   document.getElementById('new-emp-pin').value='';
   document.getElementById('new-emp-rate').value='';
-  showAlert('emp-add-alert', name + ' added.', 'success');
+  showAlert('emp-add-alert', name + ' added!', 'success'); await loadEmployees(); renderEmployeeList();
   setTimeout(function() { hideAlert('emp-add-alert'); }, 3000);
   await loadEmployees();
   renderEmployeeList();

@@ -94,7 +94,7 @@ exports.handler = async (event) => {
           owner_password_hash: hashPassword(password),
           manager_password: 'manager123',
           stripe_customer_id: stripeCustomerId,
-          stripe_subscription_id: stripeSubscriptionId,
+          stripe_subscription_id: stripeSubscriptionId || null,
           subscription_status: 'trialing'
         })
         .select()
