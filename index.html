@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shift Ready — Small Business Time Clock</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #F5EDD8; color: #3B2007; min-height: 100vh; }
+    .screen { display: none; min-height: 100vh; padding: 1rem; max-width: 600px; margin: 0 auto; }
+    .screen.active { display: block; }
+    .top-bar { background: #6B3E1E; color: white; padding: 1rem 1.25rem; border-radius: 12px; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+    .top-bar h1 { font-size: 1.1rem; font-weight: 700; }
+    .top-bar p  { font-size: 0.85rem; opacity: 0.85; }
+    .top-bar-right { font-size: 0.85rem; opacity: 0.85; text-align: right; }
+    .card { background: #FFFDF5; border-radius: 12px; border: 1px solid #D9C9A8; padding: 1.25rem; margin-bottom: 1rem; }
+    .card h2 { font-size: 1rem; font-weight: 600; color: #3B2007; margin-bottom: 0.75rem; }
+    .card h3 { font-size: 0.85rem; font-weight: 600; color: #7A5C3A; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .btn { display: inline-block; padding: 0.85rem 1.5rem; border-radius: 10px; border: none; font-size: 1rem; font-weight: 600; cursor: pointer; text-align: center; width: 100%; margin-bottom: 0.5rem; transition: opacity 0.15s; }
+    .btn:active { opacity: 0.8; }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-green   { background: #4A6741; color: white; }
+    .btn-red     { background: #8B2020; color: white; }
+    .btn-amber   { background: #8B6010; color: white; }
+    .btn-blue    { background: #1A4F8A; color: white; }
+    .btn-brown   { background: #6B3E1E; color: white; }
+    .btn-gray    { background: #7A5C3A; color: white; }
+    .btn-outline { background: transparent; color: #6B3E1E; border: 2px solid #6B3E1E; }
+    .btn-sm      { padding: 0.5rem 0.85rem; font-size: 0.85rem; width: auto; margin-bottom: 0; }
+    .btn-link    { background: none; border: none; color: #6B3E1E; font-size: 0.9rem; cursor: pointer; text-decoration: underline; width: auto; padding: 0.25rem 0; margin: 0; }
+    .pin-display { font-size: 2rem; letter-spacing: 0.5rem; text-align: center; padding: 1rem; background: #F5EDD8; border-radius: 10px; border: 2px solid #D9C9A8; margin-bottom: 1rem; min-height: 3.5rem; }
+    .pin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
+    .pin-key { padding: 1rem; font-size: 1.4rem; font-weight: 600; background: #FFFDF5; border: 1.5px solid #D9C9A8; border-radius: 10px; cursor: pointer; text-align: center; color: #3B2007; }
+    .pin-key:active { background: #EFE0BE; }
+    .pin-key.delete { background: #F0E0C0; color: #6B3E1E; }
+    .pin-key.enter  { background: #4A6741; color: white; }
+    .status-badge { display: inline-block; padding: 0.4rem 0.9rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
+    .status-out         { background: #EDE0C4; color: #7A5C3A; }
+    .status-in          { background: #DCF0D0; color: #2D4D1A; }
+    .status-break       { background: #F5E8C0; color: #5C2E00; }
+    .status-clocked-out { background: #FAE0E0; color: #6B1A1A; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #7A5C3A; margin-bottom: 0.35rem; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.75rem 1rem; border-radius: 8px; border: 1.5px solid #D9C9A8; font-size: 1rem; background: #FFFDF5; color: #3B2007; outline: none; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #6B3E1E; }
+    .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid #D9C9A8; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    th { background: #EFE0BE; color: #5C2E00; font-weight: 600; padding: 0.5rem 0.6rem; text-align: left; white-space: nowrap; }
+    td { padding: 0.5rem 0.6rem; border-top: 1px solid #EDE0C4; vertical-align: top; }
+    .edited-badge { display: inline-block; background: #F5E8C0; color: #5C2E00; font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; font-weight: 600; }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+    .summary-card { background: #EFE0BE; border-radius: 10px; padding: 0.85rem; text-align: center; }
+    .summary-card .label { font-size: 0.7rem; color: #9C7A56; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.2rem; }
+    .summary-card .value { font-size: 1.4rem; font-weight: 700; color: #6B3E1E; }
+    .payroll-card { background: #FFFDF5; border-radius: 12px; border: 1.5px solid #D9C9A8; padding: 1.25rem; margin-bottom: 0.75rem; }
+    .payroll-card .emp-name { font-size: 1rem; font-weight: 700; color: #3B2007; margin-bottom: 0.75rem; }
+    .pr { display: flex; justify-content: space-between; padding: 0.3rem 0; font-size: 0.875rem; border-bottom: 1px solid #EDE0C4; }
+    .pr:last-child { border-bottom: none; }
+    .pr .pl { color: #7A5C3A; }
+    .pr .pv { font-weight: 600; }
+    .pr.deduct .pv { color: #8B2020; }
+    .pr.total  { border-top: 2px solid #D9C9A8; border-bottom: none; margin-top: 0.4rem; }
+    .pr.total .pl { font-weight: 700; font-size: 1rem; }
+    .pr.total .pv { font-weight: 700; color: #4A6741; font-size: 1.1rem; }
+    .ot-badge { display: inline-block; background: #FAE0E0; color: #8B2020; font-size: 0.7rem; padding: 2px 7px; border-radius: 10px; font-weight: 600; margin-left: 0.4rem; }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+    .modal-backdrop.hidden { display: none; }
+    .modal { background: #FFFDF5; border-radius: 14px; padding: 1.5rem; width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; }
+    .modal h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+    .nav-tabs { display: flex; gap: 0.4rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .nav-tab { padding: 0.45rem 0.85rem; border-radius: 8px; border: 1.5px solid #D9C9A8; background: #FFFDF5; font-size: 0.8rem; font-weight: 600; cursor: pointer; color: #7A5C3A; }
+    .nav-tab.active { background: #6B3E1E; color: white; border-color: #6B3E1E; }
+    .alert { padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.875rem; font-weight: 600; margin-bottom: 1rem; display: none; }
+    .alert.show    { display: block; }
+    .alert-error   { background: #FAE0E0; color: #6B1A1A; }
+    .alert-success { background: #DCF0D0; color: #2D4D1A; }
+    .alert-info    { background: #D8EAF8; color: #1A4F8A; }
+    .alert-warn    { background: #F5E8C0; color: #5C2E00; }
+    .disclaimer { background: #F5E8C0; border: 1px solid #D9C9A8; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.8rem; color: #5C2E00; margin-bottom: 1rem; line-height: 1.5; }
+    .trial-banner { background: #1A4F8A; color: white; padding: 0.6rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; margin-bottom: 1rem; text-align: center; }
+    .divider { text-align: center; color: #9C7A56; font-size: 0.85rem; margin: 0.75rem 0; }
+    .text-center { text-align: center; }
+    .text-muted  { color: #9C7A56; font-size: 0.85rem; }
+    .mt-1 { margin-top: 0.5rem; }
+    .mt-2 { margin-top: 1rem; }
+    .flex { display: flex; }
+    .gap-1 { gap: 0.5rem; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .flex-wrap { flex-wrap: wrap; }
+    .spinner { display: inline-block; width: 18px; height: 18px; border: 3px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-overlay { position: fixed; inset: 0; background: rgba(245,237,216,0.85); display: flex; align-items: center; justify-content: center; z-index: 2000; flex-direction: column; gap: 1rem; }
+    .loading-overlay.hidden { display: none; }
+    .loading-overlay p { font-weight: 600; color: #6B3E1E; font-size: 1rem; }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white !important; }
+    }
+    @media (max-width: 380px) {
+      .pin-key { padding: 0.75rem; font-size: 1.2rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div id="loading-overlay" class="loading-overlay hidden">
+  <div style="width:40px;height:40px;border:4px solid #D9C9A8;border-top-color:#6B3E1E;border-radius:50%;animation:spin 0.7s linear infinite;"></div>
+  <p id="loading-msg">Loading...</p>
+</div>
+
+<!-- SCREEN: LANDING (public home) -->
+<div id="screen-landing" class="screen active">
+  <div style="text-align:center;padding:2rem 1rem 1rem;">
+    <div style="font-size:3rem;margin-bottom:0.5rem;">&#9201;</div>
+    <h1 style="font-size:1.75rem;font-weight:800;color:#6B3E1E;margin-bottom:0.5rem;">Shift Ready</h1>
+    <p style="color:#7A5C3A;font-size:1rem;margin-bottom:2rem;">Simple time clock and payroll for small businesses.</p>
+  </div>
+  <div class="card">
+    <button class="btn btn-brown" onclick="showScreen('screen-login')">Sign In to Your Account</button>
+    <div class="divider">or</div>
+    <button class="btn btn-green" onclick="showScreen('screen-signup')">Start Free 14-Day Trial</button>
+  </div>
+  <div class="card text-center">
+    <p class="text-muted" style="margin-bottom:0.5rem;font-size:0.8rem;">Already set up your business?</p>
+    <button class="btn btn-outline" onclick="showScreen('screen-pin')">Employee Clock In</button>
+  </div>
+  <div style="text-align:center;margin-top:1rem;">
+    <p class="text-muted" style="font-size:0.75rem;">$15.99/month per business after trial. Cancel anytime.</p>
+  </div>
+</div>
+
+<!-- SCREEN: SIGN UP -->
+<div id="screen-signup" class="screen">
+  <div class="top-bar">
+    <div><h1>&#9201; Shift Ready</h1><p>Create your account</p></div>
+  </div>
+  <div class="card">
+    <h2>Start Your Free 14-Day Trial</h2>
+    <p class="text-muted mt-1" style="margin-bottom:1rem;">No credit card required to start.</p>
+    <div id="signup-alert" class="alert"></div>
+    <div class="form-group"><label>Business Name</label><input type="text" id="signup-biz-name" placeholder="e.g. Boston Square Ice Cream" /></div>
+    <div class="form-group"><label>Your Email</label><input type="email" id="signup-email" placeholder="you@yourbusiness.com" /></div>
+    <div class="form-group"><label>Password</label><input type="password" id="signup-password" placeholder="At least 8 characters" /></div>
+    <div class="form-group"><label>Confirm Password</label><input type="password" id="signup-password2" placeholder="Confirm password" /></div>
+    <button class="btn btn-green" onclick="doSignup()">Create Account and Start Trial</button>
+    <button class="btn btn-outline" onclick="showScreen('screen-landing')">Back</button>
+  </div>
+</div>
+
+<!-- SCREEN: LOGIN (owner) -->
+<div id="screen-login" class="screen">
+  <div class="top-bar">
+    <div><h1>&#9201; Shift Ready</h1><p>Sign in</p></div>
+  </div>
+  <div class="card">
+    <h2>Sign In</h2>
+    <div id="login-alert" class="alert"></div>
+    <div class="form-group"><label>Email</label><input type="email" id="login-email" placeholder="your@email.com" /></div>
+    <div class="form-group"><label>Password</label><input type="password" id="login-password" placeholder="Your password" onkeyup="if(event.key==='Enter') doLogin()" /></div>
+    <button class="btn btn-brown" onclick="doLogin()">Sign In</button>
+    <button class="btn btn-outline" onclick="showScreen('screen-landing')">Back</button>
+    <div class="divider">New here?</div>
+    <button class="btn btn-green" onclick="showScreen('screen-signup')">Start Free Trial</button>
+  </div>
+</div>
+
+<!-- SCREEN: PIN (employee clock in) -->
+<div id="screen-pin" class="screen">
+  <div class="top-bar">
+    <div><h1 id="pin-biz-name">&#127846; Time Clock</h1><p>Employee PIN</p></div>
+    <div class="top-bar-right" id="pin-clock">--:-- --</div>
+  </div>
+  <div class="card text-center">
+    <h2>Enter Your PIN</h2>
+    <p class="text-muted mt-1" style="margin-bottom:1rem;">Type your 4-digit PIN to continue.</p>
+    <div id="pin-alert" class="alert alert-error">Incorrect PIN. Please try again.</div>
+    <div class="pin-display" id="pin-display">- - - -</div>
+    <div class="pin-grid">
+      <button class="pin-key" onclick="pinPress('1')">1</button>
+      <button class="pin-key" onclick="pinPress('2')">2</button>
+      <button class="pin-key" onclick="pinPress('3')">3</button>
+      <button class="pin-key" onclick="pinPress('4')">4</button>
+      <button class="pin-key" onclick="pinPress('5')">5</button>
+      <button class="pin-key" onclick="pinPress('6')">6</button>
+      <button class="pin-key" onclick="pinPress('7')">7</button>
+      <button class="pin-key" onclick="pinPress('8')">8</button>
+      <button class="pin-key" onclick="pinPress('9')">9</button>
+      <button class="pin-key delete" onclick="pinDelete()">&#9003;</button>
+      <button class="pin-key" onclick="pinPress('0')">0</button>
+      <button class="pin-key enter" onclick="pinSubmit()">&#10003;</button>
+    </div>
+    <div class="mt-2">
+      <button class="btn btn-outline" onclick="showManagerLogin()">Manager Login</button>
+    </div>
+    <div class="mt-1">
+      <button class="btn-link" onclick="showScreen('screen-landing')">Switch Business / Sign In</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN: EMPLOYEE DASHBOARD -->
+<div id="screen-employee" class="screen">
+  <div class="top-bar">
+    <div><h1 id="emp-biz-name">&#127846; Time Clock</h1><p id="emp-greeting">Hello!</p></div>
+    <div class="top-bar-right" id="emp-clock">--:-- --</div>
+  </div>
+  <div id="emp-alert" class="alert"></div>
+  <div class="card">
+    <div class="flex items-center justify-between flex-wrap gap-1">
+      <div>
+        <h3>Status</h3>
+        <span id="emp-status-badge" class="status-badge status-out">Not Clocked In</span>
+      </div>
+      <div style="text-align:right;">
+        <div class="text-muted">Today</div>
+        <div style="font-size:1.6rem;font-weight:700;color:#6B3E1E;" id="emp-hours-today">0.00 hrs</div>
+      </div>
+    </div>
+    <div class="mt-1 text-muted" id="emp-shift-info"></div>
+  </div>
+  <div class="card">
+    <button id="btn-clock-in"    class="btn btn-green"   onclick="empAction('clock-in')">Clock In</button>
+    <button id="btn-break-start" class="btn btn-amber"   onclick="empAction('break-start')">Start Break</button>
+    <button id="btn-break-end"   class="btn btn-amber"   onclick="empAction('break-end')">End Break</button>
+    <button id="btn-clock-out"   class="btn btn-red"     onclick="empAction('clock-out')">Clock Out</button>
+    <button                      class="btn btn-outline"  onclick="backToPin()">Back to PIN</button>
+  </div>
+</div>
+
+<!-- SCREEN: MANAGER LOGIN -->
+<div id="screen-manager-login" class="screen">
+  <div class="top-bar"><div><h1 id="mgr-login-biz">&#9201; Manager</h1><p>Manager Access</p></div></div>
+  <div class="card">
+    <h2>Manager Login</h2>
+    <div id="mgr-login-alert" class="alert alert-error">Incorrect password.</div>
+    <div class="form-group"><label>Manager Password</label><input type="password" id="mgr-password-input" placeholder="Manager password" onkeyup="if(event.key==='Enter') doManagerLogin()" /></div>
+    <button class="btn btn-brown" onclick="doManagerLogin()">Login</button>
+    <button class="btn btn-outline" onclick="showScreen('screen-pin')">Back</button>
+  </div>
+  <div class="card text-center">
+    <p class="text-muted">Default password: <strong>manager123</strong></p>
+  </div>
+</div>
+
+<!-- SCREEN: MANAGER DASHBOARD -->
+<div id="screen-manager" class="screen">
+  <div class="top-bar">
+    <div><h1 id="mgr-biz-name">&#9201; Manager</h1><p>Dashboard</p></div>
+    <div><button class="btn btn-gray btn-sm no-print" onclick="managerLogout()">Logout</button></div>
+  </div>
+  <div id="trial-banner" class="trial-banner hidden no-print"></div>
+  <div class="nav-tabs no-print">
+    <button class="nav-tab active" onclick="mgTab('today', this)">Today</button>
+    <button class="nav-tab"        onclick="mgTab('weekly', this)">Weekly</button>
+    <button class="nav-tab"        onclick="mgTab('payroll', this)">Payroll</button>
+    <button class="nav-tab"        onclick="mgTab('employees', this)">Employees</button>
+    <button class="nav-tab"        onclick="mgTab('settings', this)">Settings</button>
+  </div>
+
+  <!-- TODAY -->
+  <div id="tab-today">
+    <div class="card">
+      <h2>Today</h2>
+      <p class="text-muted" id="today-date-label" style="margin-bottom:0.75rem;"></p>
+      <div class="summary-grid" id="today-summary"></div>
+    </div>
+    <div class="card">
+      <div class="flex items-center justify-between" style="margin-bottom:0.75rem;">
+        <h2 style="margin-bottom:0;">Punches</h2>
+        <button class="btn btn-green btn-sm no-print" onclick="openAddEntryModal()">+ Add Entry</button>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Employee</th><th>In</th><th>Break</th><th>Out</th><th>Hrs</th><th class="no-print">Edit</th></tr></thead>
+        <tbody id="today-tbody"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- WEEKLY -->
+  <div id="tab-weekly" style="display:none;">
+    <div class="card">
+      <div class="flex items-center justify-between flex-wrap gap-1">
+        <h2>Weekly Hours</h2>
+        <button class="btn btn-brown btn-sm no-print" onclick="exportTimesheetCSV()">CSV</button>
+      </div>
+      <div class="form-group mt-1"><label>Week starting (Monday)</label><input type="date" id="week-start-input" onchange="renderWeekly()" /></div>
+      <div class="summary-grid" id="weekly-summary"></div>
+    </div>
+    <div class="card">
+      <div class="flex items-center justify-between" style="margin-bottom:0.75rem;">
+        <h2 style="margin-bottom:0;">All Entries</h2>
+        <button class="btn btn-green btn-sm no-print" onclick="openAddEntryModal()">+ Add Entry</button>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Employee</th><th>Date</th><th>In</th><th>Out</th><th>Hrs</th><th class="no-print">Edit</th></tr></thead>
+        <tbody id="weekly-tbody"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAYROLL -->
+  <div id="tab-payroll" style="display:none;">
+    <div class="disclaimer">Estimates only. Federal tax uses standard single-filer tables. Verify with your payroll processor.</div>
+    <div class="card">
+      <div class="flex items-center justify-between flex-wrap gap-1" style="margin-bottom:0.75rem;">
+        <h2>Payroll</h2>
+        <div class="flex gap-1 no-print">
+          <button class="btn btn-brown btn-sm" onclick="exportPayrollCSV()">CSV</button>
+          <button class="btn btn-blue  btn-sm" onclick="printPayroll()">Print</button>
+        </div>
+      </div>
+      <div class="form-group"><label>Pay week (Monday)</label><input type="date" id="payroll-week-input" onchange="renderPayroll()" /></div>
+      <p class="text-muted" id="payroll-payday-label" style="margin-bottom:0.5rem;"></p>
+      <div class="summary-grid" id="payroll-summary"></div>
+    </div>
+    <div id="payroll-cards"></div>
+  </div>
+
+  <!-- EMPLOYEES -->
+  <div id="tab-employees" style="display:none;">
+    <div class="card">
+      <h2>Add Employee</h2>
+      <div class="form-group"><label>Full Name</label><input type="text" id="new-emp-name" placeholder="e.g. Jordan Smith" /></div>
+      <div class="form-group"><label>4-Digit PIN</label><input type="text" id="new-emp-pin" maxlength="4" placeholder="e.g. 2847" /></div>
+      <div class="form-group"><label>Hourly Rate ($)</label><input type="number" id="new-emp-rate" placeholder="e.g. 13.50" step="0.01" min="0" /></div>
+      <button class="btn btn-green" onclick="addEmployee()">Add Employee</button>
+      <div id="emp-add-alert" class="alert"></div>
+    </div>
+    <div class="card"><h2>Current Employees</h2><div id="emp-list"></div></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="tab-settings" style="display:none;">
+    <div class="card">
+      <h2>Change Manager Password</h2>
+      <div class="form-group"><label>New Password</label><input type="password" id="new-mgr-pass" placeholder="New password" /></div>
+      <div class="form-group"><label>Confirm</label><input type="password" id="new-mgr-pass2" placeholder="Confirm" /></div>
+      <button class="btn btn-brown" onclick="changeManagerPassword()">Save Password</button>
+      <div id="settings-alert" class="alert"></div>
+    </div>
+    <div class="card">
+      <h2>Export Data</h2>
+      <button class="btn btn-outline" onclick="exportTimesheetCSV()">Export Timesheet CSV</button>
+      <button class="btn btn-outline" onclick="exportPayrollCSV()">Export Payroll CSV</button>
+    </div>
+    <div class="card">
+      <h2>Account</h2>
+      <p class="text-muted" style="margin-bottom:0.75rem;">Manage your subscription at stripe.com or contact support.</p>
+      <button class="btn btn-gray" onclick="ownerLogout()">Sign Out of Owner Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRINT VIEW -->
+<div id="screen-print" class="screen">
+  <div class="top-bar">
+    <div><h1 id="print-biz-title">Shift Ready</h1><p id="print-period-label">Payroll</p></div>
+    <div class="no-print flex gap-1">
+      <button class="btn btn-brown btn-sm" onclick="window.print()">Print / PDF</button>
+      <button class="btn btn-outline btn-sm" onclick="showScreen('screen-manager');mgTabById('payroll')">Back</button>
+    </div>
+  </div>
+  <div class="card no-print" style="background:#D8EAF8;border-color:#1A4F8A;">
+    <p style="color:#1A4F8A;font-size:0.875rem;font-weight:600;">iPhone tip: Tap Print / PDF, then pinch outward on the preview to save as PDF.</p>
+  </div>
+  <div id="print-body"></div>
+  <div class="card"><p class="text-muted" style="font-size:0.75rem;line-height:1.6;">Estimates only. SS 6.2%, Medicare 1.45%, MI State 4.25%. Generated: <span id="print-gen-date"></span></p></div>
+</div>
+
+<!-- CSV VIEW -->
+<div id="screen-csv" class="screen">
+  <div class="top-bar">
+    <div><h1>Shift Ready</h1><p id="csv-filename-label">Export</p></div>
+    <div><button class="btn btn-outline btn-sm" onclick="showScreen('screen-manager')">Back</button></div>
+  </div>
+  <div class="card" style="background:#D8EAF8;border-color:#1A4F8A;">
+    <p style="color:#1A4F8A;font-size:0.875rem;font-weight:600;margin-bottom:0.4rem;">Saving on iPhone:</p>
+    <p style="color:#1A4F8A;font-size:0.875rem;line-height:1.6;">1. Tap Select All<br/>2. Tap Copy<br/>3. Paste into Notes or Mail</p>
+  </div>
+  <div class="card">
+    <button class="btn btn-brown" onclick="selectAllCSV()" style="margin-bottom:0.75rem;">Select All</button>
+    <textarea id="csv-text-area" rows="18" style="width:100%;font-size:0.7rem;font-family:monospace;padding:0.75rem;border:1.5px solid #D9C9A8;border-radius:8px;background:#F5EDD8;color:#3B2007;" readonly></textarea>
+  </div>
+</div>
+
+<!-- EDIT ENTRY MODAL -->
+<div id="edit-modal" class="modal-backdrop hidden">
+  <div class="modal">
+    <h2>Edit Time Entry</h2>
+    <input type="hidden" id="edit-entry-id" />
+    <div class="form-group"><label>Employee</label><input type="text" id="edit-emp-name" disabled /></div>
+    <div class="form-group"><label>Date</label><input type="date" id="edit-date" /></div>
+    <div class="form-group"><label>Clock In</label><input type="time" id="edit-clock-in" /></div>
+    <div class="form-group"><label>Clock Out</label><input type="time" id="edit-clock-out" /></div>
+    <div class="form-group"><label>Break Start</label><input type="time" id="edit-break-start" /></div>
+    <div class="form-group"><label>Break End</label><input type="time" id="edit-break-end" /></div>
+    <div class="form-group"><label>Manager Note (required)</label><textarea id="edit-note" rows="2" placeholder="Reason for edit..."></textarea></div>
+    <div id="edit-alert" class="alert"></div>
+    <button class="btn btn-brown" onclick="saveEditEntry()">Save</button>
+    <button class="btn btn-gray"  onclick="document.getElementById('edit-modal').classList.add('hidden')">Cancel</button>
+  </div>
+</div>
+
+<!-- ADD ENTRY MODAL -->
+<div id="add-entry-modal" class="modal-backdrop hidden">
+  <div class="modal">
+    <h2>Add Missing Entry</h2>
+    <p class="text-muted" style="margin-bottom:1rem;">For when an employee forgot to clock in or out.</p>
+    <div class="form-group"><label>Employee</label><select id="add-entry-emp"><option value="">Select...</option></select></div>
+    <div class="form-group"><label>Date</label><input type="date" id="add-entry-date" /></div>
+    <div class="form-group"><label>Clock In</label><input type="time" id="add-entry-clock-in" /></div>
+    <div class="form-group"><label>Clock Out (optional)</label><input type="time" id="add-entry-clock-out" /></div>
+    <div class="form-group"><label>Break Start (optional)</label><input type="time" id="add-entry-break-start" /></div>
+    <div class="form-group"><label>Break End (optional)</label><input type="time" id="add-entry-break-end" /></div>
+    <div class="form-group"><label>Manager Note (required)</label><textarea id="add-entry-note" rows="2" placeholder="e.g. Employee forgot to clock in."></textarea></div>
+    <div id="add-entry-alert" class="alert"></div>
+    <button class="btn btn-green" onclick="saveAddEntry()">Save Entry</button>
+    <button class="btn btn-gray"  onclick="document.getElementById('add-entry-modal').classList.add('hidden')">Cancel</button>
+  </div>
+</div>
+
+<!-- EDIT EMPLOYEE MODAL -->
+<div id="edit-emp-modal" class="modal-backdrop hidden">
+  <div class="modal">
+    <h2>Edit Employee</h2>
+    <input type="hidden" id="edit-emp-id" />
+    <div class="form-group"><label>Full Name</label><input type="text" id="edit-emp-name-field" /></div>
+    <div class="form-group"><label>PIN</label><input type="text" id="edit-emp-pin-field" maxlength="4" /></div>
+    <div class="form-group"><label>Hourly Rate ($)</label><input type="number" id="edit-emp-rate-field" step="0.01" min="0" /></div>
+    <div id="edit-emp-alert" class="alert"></div>
+    <button class="btn btn-brown" onclick="saveEditEmployee()">Save</button>
+    <button class="btn btn-gray"  onclick="document.getElementById('edit-emp-modal').classList.add('hidden')">Cancel</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG — API base URL
+// ============================================================
+var API = '/api';
+
+// ============================================================
+// APP STATE
+// ============================================================
+var state = {
+  businessId:   null,
+  businessName: null,
+  managerPassword: null,
+  subscriptionStatus: null,
+  trialEndsAt: null,
+  employees: [],
+  todayEntries: [],
+  currentEmployeeId: null,
+  currentEmployeeName: null
+};
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function showScreen(id) {
+  var screens = document.querySelectorAll('.screen');
+  for (var i = 0; i < screens.length; i++) screens[i].classList.remove('active');
+  var el = document.getElementById(id);
+  if (el) { el.classList.add('active'); window.scrollTo(0,0); }
+}
+
+function loading(show, msg) {
+  var ov = document.getElementById('loading-overlay');
+  var ms = document.getElementById('loading-msg');
+  if (show) {
+    ms.textContent = msg || 'Loading...';
+    ov.classList.remove('hidden');
+  } else {
+    ov.classList.add('hidden');
+  }
+}
+
+function showAlert(id, msg, type) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'alert alert-' + type + ' show';
+}
+function hideAlert(id) {
+  var el = document.getElementById(id);
+  if (el) el.className = 'alert';
+}
+
+function todayStr() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function fmtTime(ts) {
+  if (!ts) return '--';
+  var d = new Date(Number(ts));
+  var h = d.getHours(), m = d.getMinutes();
+  var ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return h + ':' + String(m).padStart(2,'0') + ' ' + ampm;
+}
+
+function fmtMinutes(mins) {
+  if (!mins || mins <= 0) return '0m';
+  var h = Math.floor(mins/60), m = mins%60;
+  if (h===0) return m+'m';
+  if (m===0) return h+'h';
+  return h+'h '+m+'m';
+}
+
+function calcHours(entry) {
+  if (!entry.clock_in || !entry.clock_out) return 0;
+  var diff  = Number(entry.clock_out) - Number(entry.clock_in);
+  var brk   = (entry.total_break_minutes || 0) * 60000;
+  return Math.round((Math.max(0, diff - brk) / 3600000) * 100) / 100;
+}
+
+function fmtMoney(n) { return '$' + Math.abs(n).toFixed(2); }
+
+async function api(method, path, body) {
+  var opts = { method: method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  var res  = await fetch(API + path, opts);
+  var data = await res.json();
+  return data;
+}
+
+// ============================================================
+// LIVE CLOCK
+// ============================================================
+function updateClock() {
+  var now = new Date();
+  var h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+  var ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  var str = h + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0') + ' ' + ampm;
+  var el1 = document.getElementById('pin-clock');
+  var el2 = document.getElementById('emp-clock');
+  if (el1) el1.textContent = str;
+  if (el2) el2.textContent = str;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ============================================================
+// PAYROLL MATH
+// ============================================================
+function estimateFedTax(weeklyGross) {
+  var annual = weeklyGross * 52;
+  var tax = 0;
+  if      (annual <= 11600)  tax = annual * 0.10;
+  else if (annual <= 47150)  tax = 1160  + (annual - 11600)  * 0.12;
+  else if (annual <= 100525) tax = 5426  + (annual - 47150)  * 0.22;
+  else if (annual <= 191950) tax = 17168 + (annual - 100525) * 0.24;
+  else                       tax = 39110 + (annual - 191950) * 0.32;
+  return Math.round((tax/52)*100)/100;
+}
+
+function calcPayroll(empId, entries, rate) {
+  var empEntries = entries.filter(function(e) { return e.employee_id === empId && e.clock_out; });
+  var total = empEntries.reduce(function(s,e) { return s + calcHours(e); }, 0);
+  total = Math.round(total*100)/100;
+  var reg = Math.min(total, 40), ot = Math.max(0, total-40);
+  reg = Math.round(reg*100)/100; ot = Math.round(ot*100)/100;
+  var regPay = Math.round(reg * rate * 100)/100;
+  var otPay  = Math.round(ot  * rate * 1.5 * 100)/100;
+  var gross  = Math.round((regPay + otPay)*100)/100;
+  var fed    = estimateFedTax(gross);
+  var ss     = Math.round(gross * 0.062  * 100)/100;
+  var med    = Math.round(gross * 0.0145 * 100)/100;
+  var mi     = Math.round(gross * 0.0425 * 100)/100;
+  var deduct = Math.round((fed+ss+med+mi)*100)/100;
+  var net    = Math.round((gross-deduct)*100)/100;
+  return { total:total, reg:reg, ot:ot, regPay:regPay, otPay:otPay, gross:gross, fed:fed, ss:ss, med:med, mi:mi, deduct:deduct, net:net, hasOT: ot>0 };
+}
+
+// ============================================================
+// AUTH — SIGNUP
+// ============================================================
+async function doSignup() {
+  var biz  = document.getElementById('signup-biz-name').value.trim();
+  var email= document.getElementById('signup-email').value.trim();
+  var pw   = document.getElementById('signup-password').value;
+  var pw2  = document.getElementById('signup-password2').value;
+
+  if (!biz || !email || !pw) { showAlert('signup-alert','Please fill in all fields.','error'); return; }
+  if (pw.length < 8) { showAlert('signup-alert','Password must be at least 8 characters.','error'); return; }
+  if (pw !== pw2)    { showAlert('signup-alert','Passwords do not match.','error'); return; }
+
+  loading(true, 'Creating your account...');
+  var data = await api('POST', '/signup', { businessName: biz, email: email, password: pw });
+  loading(false);
+
+  if (data.error) { showAlert('signup-alert', data.error, 'error'); return; }
+
+  state.businessId   = data.businessId;
+  state.businessName = data.businessName;
+  state.managerPassword = 'manager123';
+  state.subscriptionStatus = 'trialing';
+  state.trialEndsAt = data.trialEndsAt;
+  saveSession();
+  await loadEmployees();
+  goToPin();
+}
+
+// ============================================================
+// AUTH — LOGIN
+// ============================================================
+async function doLogin() {
+  var email = document.getElementById('login-email').value.trim();
+  var pw    = document.getElementById('login-password').value;
+  if (!email || !pw) { showAlert('login-alert','Email and password required.','error'); return; }
+
+  loading(true, 'Signing in...');
+  var data = await api('POST', '/login', { email: email, password: pw });
+  loading(false);
+
+  if (data.error) { showAlert('login-alert', data.error, 'error'); return; }
+
+  state.businessId        = data.businessId;
+  state.businessName      = data.businessName;
+  state.managerPassword   = data.managerPassword;
+  state.subscriptionStatus= data.subscriptionStatus;
+  state.trialEndsAt       = data.trialEndsAt;
+  saveSession();
+  await loadEmployees();
+  goToPin();
+}
+
+// ============================================================
+// SESSION — persist login across page refresh
+// ============================================================
+function saveSession() {
+  localStorage.setItem('sr_session', JSON.stringify({
+    businessId: state.businessId,
+    businessName: state.businessName,
+    managerPassword: state.managerPassword,
+    subscriptionStatus: state.subscriptionStatus,
+    trialEndsAt: state.trialEndsAt
+  }));
+}
+
+function loadSession() {
+  var raw = localStorage.getItem('sr_session');
+  if (!raw) return false;
+  try {
+    var s = JSON.parse(raw);
+    state.businessId        = s.businessId;
+    state.businessName      = s.businessName;
+    state.managerPassword   = s.managerPassword;
+    state.subscriptionStatus= s.subscriptionStatus;
+    state.trialEndsAt       = s.trialEndsAt;
+    return true;
+  } catch(e) { return false; }
+}
+
+function ownerLogout() {
+  localStorage.removeItem('sr_session');
+  state.businessId = null;
+  state.businessName = null;
+  showScreen('screen-landing');
+}
+
+// ============================================================
+// EMPLOYEES — load from server
+// ============================================================
+async function loadEmployees() {
+  if (!state.businessId) return;
+  var data = await api('GET', '/employees?businessId=' + state.businessId);
+  if (data.employees) state.employees = data.employees;
+}
+
+// ============================================================
+// PIN SCREEN
+// ============================================================
+function goToPin() {
+  var el = document.getElementById('pin-biz-name');
+  if (el) el.textContent = '&#127846; ' + (state.businessName || 'Time Clock');
+  pinBuffer = '';
+  updatePinDisplay();
+  showScreen('screen-pin');
+}
+
+var pinBuffer = '';
+
+function updatePinDisplay() {
+  var out = '';
+  for (var i = 0; i < 4; i++) {
+    out += (i < pinBuffer.length) ? '●' : '-';
+    if (i < 3) out += ' ';
+  }
+  document.getElementById('pin-display').textContent = out;
+}
+
+function pinPress(d) {
+  if (pinBuffer.length < 4) {
+    pinBuffer += d;
+    updatePinDisplay();
+    if (pinBuffer.length === 4) setTimeout(pinSubmit, 100);
+  }
+}
+
+function pinDelete() {
+  pinBuffer = pinBuffer.slice(0,-1);
+  updatePinDisplay();
+  hideAlert('pin-alert');
+}
+
+function pinSubmit() {
+  var match = null;
+  for (var i = 0; i < state.employees.length; i++) {
+    if (state.employees[i].pin === pinBuffer) { match = state.employees[i]; break; }
+  }
+  if (match) {
+    pinBuffer = '';
+    updatePinDisplay();
+    hideAlert('pin-alert');
+    loadEmployeeScreen(match.id, match.name);
+  } else {
+    showAlert('pin-alert','Incorrect PIN. Please try again.','error');
+    pinBuffer = '';
+    updatePinDisplay();
+  }
+}
+
+// ============================================================
+// EMPLOYEE SCREEN
+// ============================================================
+async function loadEmployeeScreen(empId, empName) {
+  state.currentEmployeeId   = empId;
+  state.currentEmployeeName = empName;
+  document.getElementById('emp-biz-name').textContent = '&#127846; ' + (state.businessName || '');
+  document.getElementById('emp-greeting').textContent = 'Hello, ' + empName.split(' ')[0] + '!';
+  hideAlert('emp-alert');
+  await refreshEmpStatus();
+  showScreen('screen-employee');
+}
+
+async function refreshEmpStatus() {
+  var data = await api('GET', '/entries?businessId=' + state.businessId + '&date=' + todayStr());
+  var entries = data.entries || [];
+  state.todayEntries = entries;
+
+  var myEntries = entries.filter(function(e) { return e.employee_id === state.currentEmployeeId; });
+  var openEntry = null;
+  for (var i = 0; i < myEntries.length; i++) {
+    if (!myEntries[i].clock_out) { openEntry = myEntries[i]; break; }
+  }
+
+  var totalHours = 0;
+  for (var j = 0; j < myEntries.length; j++) {
+    var e = myEntries[j];
+    if (e.clock_out) {
+      totalHours += calcHours(e);
+    } else if (e.clock_in) {
+      var brk    = (e.total_break_minutes||0)*60000;
+      var onBrk  = (e.break_start && !e.break_end) ? (Date.now() - Number(e.break_start)) : 0;
+      totalHours += Math.max(0, Date.now() - Number(e.clock_in) - brk - onBrk) / 3600000;
+    }
+  }
+  document.getElementById('emp-hours-today').textContent = totalHours.toFixed(2) + ' hrs';
+
+  var status = 'out', statusText = 'Not Clocked In', shiftInfo = '';
+  if (openEntry) {
+    if (openEntry.break_start && !openEntry.break_end) {
+      status = 'break'; statusText = 'On Break';
+      shiftInfo = 'Break started at ' + fmtTime(openEntry.break_start);
+    } else {
+      status = 'in'; statusText = 'Clocked In';
+      shiftInfo = 'Clocked in at ' + fmtTime(openEntry.clock_in);
+    }
+  } else {
+    var lastOut = null;
+    for (var k = 0; k < myEntries.length; k++) {
+      if (myEntries[k].clock_out) {
+        if (!lastOut || Number(myEntries[k].clock_out) > Number(lastOut.clock_out)) lastOut = myEntries[k];
+      }
+    }
+    if (lastOut) { status = 'clocked-out'; statusText = 'Clocked Out'; shiftInfo = 'Last: ' + fmtTime(lastOut.clock_in) + ' to ' + fmtTime(lastOut.clock_out); }
+  }
+
+  var badge = document.getElementById('emp-status-badge');
+  badge.textContent = statusText;
+  badge.className   = 'status-badge status-' + (status === 'clocked-out' ? 'clocked-out' : status);
+  document.getElementById('emp-shift-info').textContent = shiftInfo;
+
+  document.getElementById('btn-clock-in').disabled    = (status==='in' || status==='break');
+  document.getElementById('btn-break-start').disabled = (status!=='in');
+  document.getElementById('btn-break-end').disabled   = (status!=='break');
+  document.getElementById('btn-clock-out').disabled   = (status!=='in');
+}
+
+async function empAction(action) {
+  var btns = document.querySelectorAll('#screen-employee .btn');
+  for (var i = 0; i < btns.length; i++) btns[i].disabled = true;
+
+  var data = await api('POST', '/entries', {
+    businessId: state.businessId,
+    employeeId: state.currentEmployeeId,
+    employeeName: state.currentEmployeeName,
+    action: action,
+    date: todayStr()
+  });
+
+  if (data.error) {
+    var el = document.getElementById('emp-alert');
+    el.textContent = data.error;
+    el.className = 'alert alert-error show';
+    setTimeout(function() { el.className='alert'; }, 3000);
+  } else {
+    var msgs = { 'clock-in':'Clocked in!', 'break-start':'Break started.', 'break-end':'Welcome back!', 'clock-out':'Clocked out.' };
+    var el2 = document.getElementById('emp-alert');
+    el2.textContent = msgs[action] || 'Done.';
+    el2.className = 'alert alert-success show';
+    setTimeout(function() { el2.className='alert'; }, 3000);
+  }
+  await refreshEmpStatus();
+}
+
+function backToPin() { state.currentEmployeeId = null; goToPin(); }
+
+// ============================================================
+// MANAGER LOGIN
+// ============================================================
+function showManagerLogin() {
+  document.getElementById('mgr-login-biz').textContent = state.businessName || 'Manager';
+  hideAlert('mgr-login-alert');
+  showScreen('screen-manager-login');
+}
+
+async function doManagerLogin() {
+  var pw = document.getElementById('mgr-password-input').value;
+  loading(true, 'Logging in...');
+  var data = await api('POST', '/manager-login', { businessId: state.businessId, password: pw });
+  loading(false);
+
+  if (data.error) { showAlert('mgr-login-alert', data.error, 'error'); return; }
+
+  document.getElementById('mgr-password-input').value = '';
+  hideAlert('mgr-login-alert');
+  loadManagerDashboard(data);
+  showScreen('screen-manager');
+}
+
+function managerLogout() { showScreen('screen-pin'); }
+
+function loadManagerDashboard(data) {
+  var bizName = data.businessName || state.businessName || 'Manager';
+  document.getElementById('mgr-biz-name').textContent = '&#9201; ' + bizName;
+
+  var banner = document.getElementById('trial-banner');
+  if (data.subscriptionStatus === 'trialing' && data.trialEndsAt) {
+    var daysLeft = Math.ceil((new Date(data.trialEndsAt) - new Date()) / 86400000);
+    if (daysLeft > 0) {
+      banner.textContent = 'Free trial: ' + daysLeft + ' day' + (daysLeft===1?'':'s') + ' remaining.';
+      banner.classList.remove('hidden');
+    } else {
+      banner.textContent = 'Your trial has ended. Please update your payment method.';
+      banner.classList.remove('hidden');
+    }
+  } else {
+    banner.classList.add('hidden');
+  }
+
+  document.getElementById('today-date-label').textContent =
+    new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  var monday = getMondayOf(new Date());
+  var mondayStr = monday.toISOString().split('T')[0];
+  document.getElementById('week-start-input').value   = mondayStr;
+  document.getElementById('payroll-week-input').value = mondayStr;
+
+  renderToday();
+  renderWeekly();
+  renderPayroll();
+  renderEmployeeList();
+}
+
+// ============================================================
+// TAB NAVIGATION
+// ============================================================
+function mgTab(name, btn) {
+  var tabs = ['today','weekly','payroll','employees','settings'];
+  for (var i = 0; i < tabs.length; i++) {
+    var el = document.getElementById('tab-' + tabs[i]);
+    if (el) el.style.display = (tabs[i]===name) ? 'block' : 'none';
+  }
+  var btns = document.querySelectorAll('.nav-tab');
+  for (var j = 0; j < btns.length; j++) btns[j].classList.remove('active');
+  if (btn) btn.classList.add('active');
+  if (name==='today')     renderToday();
+  if (name==='weekly')    renderWeekly();
+  if (name==='payroll')   renderPayroll();
+  if (name==='employees') renderEmployeeList();
+}
+
+function mgTabById(name) {
+  var btns = document.querySelectorAll('.nav-tab');
+  var labels = ['today','weekly','payroll','employees','settings'];
+  for (var i = 0; i < btns.length; i++) {
+    if (labels[i] === name) { mgTab(name, btns[i]); return; }
+  }
+}
+
+function getMondayOf(date) {
+  var d = new Date(date);
+  var day = d.getDay();
+  d.setDate(d.getDate() + (day===0 ? -6 : 1-day));
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+// ============================================================
+// TODAY TAB
+// ============================================================
+async function renderToday() {
+  var data = await api('GET', '/entries?businessId=' + state.businessId + '&date=' + todayStr());
+  var entries = data.entries || [];
+  state.todayEntries = entries;
+
+  var clockedIn=0, onBreak=0, completed=0;
+  for (var i=0; i<entries.length; i++) {
+    var e=entries[i];
+    if (e.break_start && !e.break_end) onBreak++;
+    else if (e.clock_in && !e.clock_out) clockedIn++;
+    if (e.clock_out) completed++;
+  }
+  document.getElementById('today-summary').innerHTML =
+    sc('Clocked In', clockedIn) + sc('On Break', onBreak) + sc('Completed', completed) + sc('Punches', entries.length);
+
+  var tbody = document.getElementById('today-tbody');
+  if (entries.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9C7A56;">No punches today.</td></tr>'; return;
+  }
+  var html = '';
+  for (var j=0; j<entries.length; j++) {
+    var en = entries[j];
+    var hrs = en.clock_out ? calcHours(en).toFixed(2) : (en.clock_in ? '<em>Active</em>' : '--');
+    var ed  = en.edited ? '<span class="edited-badge">Edited</span>' : '';
+    html += '<tr><td>' + en.employee_name + ' ' + ed + '</td><td>' + fmtTime(en.clock_in) + '</td><td>' + (en.break_start ? fmtMinutes(en.total_break_minutes) : '--') + '</td><td>' + fmtTime(en.clock_out) + '</td><td>' + hrs + '</td><td class="no-print"><button class="btn btn-outline btn-sm" onclick="openEditModal(\'' + en.id + '\')">Edit</button></td></tr>';
+  }
+  tbody.innerHTML = html;
+}
+
+function sc(label, value) {
+  return '<div class="summary-card"><div class="label">' + label + '</div><div class="value">' + value + '</div></div>';
+}
+
+// ============================================================
+// WEEKLY TAB
+// ============================================================
+async function renderWeekly() {
+  var weekStart = new Date(document.getElementById('week-start-input').value + 'T00:00:00');
+  var weekEnd   = new Date(weekStart); weekEnd.setDate(weekEnd.getDate()+6); weekEnd.setHours(23,59,59,999);
+  var ws = weekStart.toISOString().split('T')[0];
+  var we = weekEnd.toISOString().split('T')[0];
+  var data = await api('GET', '/entries?businessId=' + state.businessId + '&weekStart=' + ws + '&weekEnd=' + we);
+  var entries = data.entries || [];
+
+  var byEmp = {};
+  for (var i=0; i<entries.length; i++) {
+    var n = entries[i].employee_name;
+    if (!byEmp[n]) byEmp[n] = 0;
+    byEmp[n] += calcHours(entries[i]);
+  }
+  var total = 0;
+  var names = Object.keys(byEmp);
+  for (var j=0; j<names.length; j++) total += byEmp[names[j]];
+
+  var sumHTML = sc('Total Hrs', total.toFixed(2));
+  for (var k=0; k<names.length; k++) sumHTML += sc(names[k].split(' ')[0], byEmp[names[k]].toFixed(2));
+  document.getElementById('weekly-summary').innerHTML = sumHTML;
+
+  var tbody = document.getElementById('weekly-tbody');
+  if (entries.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9C7A56;">No entries.</td></tr>'; return; }
+  var html = '';
+  for (var m=0; m<entries.length; m++) {
+    var e = entries[m];
+    var hrs = e.clock_out ? calcHours(e).toFixed(2) : '--';
+    var ed  = e.edited ? '<span class="edited-badge">Edited</span> ' : '';
+    html += '<tr><td>' + ed + e.employee_name + '</td><td>' + e.date + '</td><td>' + fmtTime(e.clock_in) + '</td><td>' + fmtTime(e.clock_out) + '</td><td>' + hrs + '</td><td class="no-print"><button class="btn btn-outline btn-sm" onclick="openEditModal(\'' + e.id + '\')">Edit</button></td></tr>';
+  }
+  tbody.innerHTML = html;
+}
+
+// ============================================================
+// PAYROLL TAB
+// ============================================================
+async function renderPayroll() {
+  var weekStart = new Date(document.getElementById('payroll-week-input').value + 'T00:00:00');
+  var weekEnd   = new Date(weekStart); weekEnd.setDate(weekEnd.getDate()+6); weekEnd.setHours(23,59,59,999);
+  var ws = weekStart.toISOString().split('T')[0];
+  var we = weekEnd.toISOString().split('T')[0];
+
+  var payday = new Date(weekStart); payday.setDate(payday.getDate()+9);
+  document.getElementById('payroll-payday-label').textContent = 'Payday: Wednesday, ' + payday.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+
+  var data = await api('GET', '/entries?businessId=' + state.businessId + '&weekStart=' + ws + '&weekEnd=' + we);
+  var entries = data.entries || [];
+
+  var seenIds = [];
+  for (var i=0; i<entries.length; i++) {
+    if (seenIds.indexOf(entries[i].employee_id) === -1) seenIds.push(entries[i].employee_id);
+  }
+
+  if (seenIds.length === 0) {
+    document.getElementById('payroll-summary').innerHTML = '';
+    document.getElementById('payroll-cards').innerHTML = '<div class="card text-center"><p class="text-muted">No entries this week.</p></div>';
+    return;
+  }
+
+  var totalGross=0, totalNet=0, totalHrs=0;
+  var cardsHTML = '';
+
+  for (var j=0; j<seenIds.length; j++) {
+    var empId = seenIds[j];
+    var emp   = null;
+    for (var k=0; k<state.employees.length; k++) {
+      if (state.employees[k].id === empId) { emp = state.employees[k]; break; }
+    }
+    if (!emp) continue;
+    var rate = emp.hourly_rate || 0;
+    var p    = calcPayroll(empId, entries, rate);
+    totalGross += p.gross; totalNet += p.net; totalHrs += p.total;
+
+    var otBadge = p.hasOT ? '<span class="ot-badge">OT</span>' : '';
+    var otRow   = p.hasOT ? '<div class="pr"><span class="pl">Overtime (' + p.ot.toFixed(2) + ' hrs @ 1.5x)</span><span class="pv">' + fmtMoney(p.otPay) + '</span></div>' : '';
+
+    cardsHTML +=
+      '<div class="payroll-card">' +
+        '<div class="emp-name">' + emp.name + ' ' + otBadge + '</div>' +
+        '<div class="pr"><span class="pl">Rate</span><span class="pv">' + fmtMoney(rate) + '/hr</span></div>' +
+        '<div class="pr"><span class="pl">Regular (' + p.reg.toFixed(2) + ' hrs)</span><span class="pv">' + fmtMoney(p.regPay) + '</span></div>' +
+        otRow +
+        '<div class="pr"><span class="pl">Gross Pay</span><span class="pv">' + fmtMoney(p.gross) + '</span></div>' +
+        '<div class="pr deduct"><span class="pl">Federal Tax (est.)</span><span class="pv">- ' + fmtMoney(p.fed) + '</span></div>' +
+        '<div class="pr deduct"><span class="pl">Social Security</span><span class="pv">- ' + fmtMoney(p.ss) + '</span></div>' +
+        '<div class="pr deduct"><span class="pl">Medicare</span><span class="pv">- ' + fmtMoney(p.med) + '</span></div>' +
+        '<div class="pr deduct"><span class="pl">Michigan State</span><span class="pv">- ' + fmtMoney(p.mi) + '</span></div>' +
+        '<div class="pr deduct"><span class="pl">Total Deductions</span><span class="pv">- ' + fmtMoney(p.deduct) + '</span></div>' +
+        '<div class="pr total"><span class="pl">Est. Net Pay</span><span class="pv">' + fmtMoney(p.net) + '</span></div>' +
+      '</div>';
+  }
+
+  document.getElementById('payroll-summary').innerHTML = sc('Total Hrs', totalHrs.toFixed(2)) + sc('Gross', fmtMoney(totalGross)) + sc('Est. Net', fmtMoney(totalNet));
+  document.getElementById('payroll-cards').innerHTML = cardsHTML;
+}
+
+// ============================================================
+// PRINT PAYROLL
+// ============================================================
+async function printPayroll() {
+  var weekStart = new Date(document.getElementById('payroll-week-input').value + 'T00:00:00');
+  var weekEnd   = new Date(weekStart); weekEnd.setDate(weekEnd.getDate()+6); weekEnd.setHours(23,59,59,999);
+  var ws = weekStart.toISOString().split('T')[0];
+  var we = weekEnd.toISOString().split('T')[0];
+
+  loading(true, 'Building print view...');
+  var data = await api('GET', '/entries?businessId=' + state.businessId + '&weekStart=' + ws + '&weekEnd=' + we);
+  loading(false);
+  var entries = data.entries || [];
+
+  var weekLabel = weekStart.toLocaleDateString('en-US',{month:'long',day:'numeric'}) + ' to ' + weekEnd.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  var payday    = new Date(weekStart); payday.setDate(payday.getDate()+9);
+  var paydayStr = 'Wednesday, ' + payday.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+
+  document.getElementById('print-biz-title').textContent = state.businessName || 'Shift Ready';
+  document.getElementById('print-period-label').textContent = 'Pay Period: ' + weekLabel;
+  document.getElementById('print-gen-date').textContent = new Date().toLocaleString();
+
+  var seenIds = [];
+  for (var i=0; i<entries.length; i++) {
+    if (seenIds.indexOf(entries[i].employee_id)===-1) seenIds.push(entries[i].employee_id);
+  }
+
+  if (seenIds.length===0) {
+    document.getElementById('print-body').innerHTML = '<div class="card text-center"><p class="text-muted">No entries.</p></div>';
+    showScreen('screen-print'); return;
+  }
+
+  var totalGross=0, totalNet=0, totalHrs=0;
+  var empHTML = '';
+
+  for (var j=0; j<seenIds.length; j++) {
+    var emp = null;
+    for (var k=0; k<state.employees.length; k++) {
+      if (state.employees[k].id===seenIds[j]) { emp=state.employees[k]; break; }
+    }
+    if (!emp) continue;
+    var rate=emp.hourly_rate||0;
+    var p=calcPayroll(seenIds[j], entries, rate);
+    totalGross+=p.gross; totalNet+=p.net; totalHrs+=p.total;
+
+    var otRow2 = p.hasOT ? '<tr><td>Overtime (' + p.ot.toFixed(2) + ' hrs @ 1.5x)</td><td style="text-align:right;">' + fmtMoney(p.otPay) + '</td></tr>' : '';
+
+    empHTML +=
+      '<div class="payroll-card" style="page-break-inside:avoid;">' +
+        '<div class="emp-name">' + emp.name + (p.hasOT ? ' <span class="ot-badge">OT</span>' : '') + '</div>' +
+        '<table style="width:100%;border-collapse:collapse;font-size:0.875rem;">' +
+          '<thead><tr><th style="background:#EFE0BE;color:#5C2E00;padding:0.4rem 0.6rem;text-align:left;">Description</th><th style="background:#EFE0BE;color:#5C2E00;padding:0.4rem 0.6rem;text-align:right;">Amount</th></tr></thead>' +
+          '<tbody>' +
+            '<tr><td style="padding:0.35rem 0.6rem;color:#7A5C3A;">Rate</td><td style="padding:0.35rem 0.6rem;text-align:right;">' + fmtMoney(rate) + '/hr</td></tr>' +
+            '<tr><td style="padding:0.35rem 0.6rem;color:#7A5C3A;">Regular (' + p.reg.toFixed(2) + ' hrs)</td><td style="padding:0.35rem 0.6rem;text-align:right;">' + fmtMoney(p.regPay) + '</td></tr>' +
+            otRow2 +
+            '<tr style="background:#EFE0BE;"><td style="padding:0.35rem 0.6rem;font-weight:700;">Gross Pay</td><td style="padding:0.35rem 0.6rem;text-align:right;font-weight:700;">' + fmtMoney(p.gross) + '</td></tr>' +
+            '<tr><td style="padding:0.35rem 0.6rem;color:#8B2020;">Federal Tax (est.)</td><td style="padding:0.35rem 0.6rem;text-align:right;color:#8B2020;">- ' + fmtMoney(p.fed) + '</td></tr>' +
+            '<tr><td style="padding:0.35rem 0.6rem;color:#8B2020;">Social Security</td><td style="padding:0.35rem 0.6rem;text-align:right;color:#8B2020;">- ' + fmtMoney(p.ss) + '</td></tr>' +
+            '<tr><td style="padding:0.35rem 0.6rem;color:#8B2020;">Medicare</td><td style="padding:0.35rem 0.6rem;text-align:right;color:#8B2020;">- ' + fmtMoney(p.med) + '</td></tr>' +
+            '<tr><td style="padding:0.35rem 0.6rem;color:#8B2020;">Michigan State</td><td style="padding:0.35rem 0.6rem;text-align:right;color:#8B2020;">- ' + fmtMoney(p.mi) + '</td></tr>' +
+            '<tr style="border-top:2px solid #D9C9A8;"><td style="padding:0.5rem 0.6rem;font-weight:700;color:#4A6741;">Est. Net Pay</td><td style="padding:0.5rem 0.6rem;text-align:right;font-weight:700;color:#4A6741;font-size:1rem;">' + fmtMoney(p.net) + '</td></tr>' +
+          '</tbody>' +
+        '</table>' +
+      '</div>';
+  }
+
+  var bodyHTML =
+    '<div class="card">' +
+      '<h2>' + weekLabel + '</h2>' +
+      '<p style="color:#5C2E00;margin-bottom:0.75rem;">Payday: <strong>' + paydayStr + '</strong></p>' +
+      '<div class="summary-grid">' + sc('Total Hrs',totalHrs.toFixed(2)) + sc('Gross',fmtMoney(totalGross)) + sc('Est. Net',fmtMoney(totalNet)) + '</div>' +
+    '</div>' + empHTML;
+
+  document.getElementById('print-body').innerHTML = bodyHTML;
+  showScreen('screen-print');
+}
+
+// ============================================================
+// EMPLOYEES TAB
+// ============================================================
+function renderEmployeeList() {
+  var el = document.getElementById('emp-list');
+  if (state.employees.length === 0) { el.innerHTML = '<p class="text-muted">No employees yet.</p>'; return; }
+  var html = '';
+  for (var i=0; i<state.employees.length; i++) {
+    var emp = state.employees[i];
+    html +=
+      '<div class="card" style="margin-bottom:0.6rem;">' +
+        '<div class="flex items-center justify-between flex-wrap gap-1">' +
+          '<div><strong>' + emp.name + '</strong><div class="text-muted">PIN: ' + emp.pin + ' | $' + (emp.hourly_rate||0).toFixed(2) + '/hr</div></div>' +
+          '<div class="flex gap-1">' +
+            '<button class="btn btn-outline btn-sm" onclick="openEditEmpModal(\'' + emp.id + '\')">Edit</button>' +
+            '<button class="btn btn-gray btn-sm" onclick="removeEmployee(\'' + emp.id + '\')">Remove</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+  el.innerHTML = html;
+}
+
+async function addEmployee() {
+  var name = document.getElementById('new-emp-name').value.trim();
+  var pin  = document.getElementById('new-emp-pin').value.trim();
+  var rate = parseFloat(document.getElementById('new-emp-rate').value);
+  if (!name || !pin) { showAlert('emp-add-alert','Name and PIN required.','error'); return; }
+  if (!/^\d{4}$/.test(pin)) { showAlert('emp-add-alert','PIN must be 4 digits.','error'); return; }
+  if (isNaN(rate)||rate<=0) { showAlert('emp-add-alert','Enter a valid hourly rate.','error'); return; }
+
+  loading(true, 'Adding employee...');
+  var data = await api('POST', '/employees', { businessId: state.businessId, name:name, pin:pin, hourlyRate:rate });
+  loading(false);
+
+  if (data.error) { showAlert('emp-add-alert', data.error, 'error'); return; }
+
+  document.getElementById('new-emp-name').value='';
+  document.getElementById('new-emp-pin').value='';
+  document.getElementById('new-emp-rate').value='';
+  showAlert('emp-add-alert', name + ' added.', 'success');
+  setTimeout(function() { hideAlert('emp-add-alert'); }, 3000);
+  await loadEmployees();
+  renderEmployeeList();
+}
+
+async function removeEmployee(empId) {
+  if (!confirm('Remove this employee? Their time records will remain.')) return;
+  loading(true, 'Removing...');
+  await api('DELETE', '/employees', { businessId: state.businessId, employeeId: empId });
+  loading(false);
+  await loadEmployees();
+  renderEmployeeList();
+}
+
+function openEditEmpModal(empId) {
+  var emp = null;
+  for (var i=0; i<state.employees.length; i++) {
+    if (state.employees[i].id===empId) { emp=state.employees[i]; break; }
+  }
+  if (!emp) return;
+  document.getElementById('edit-emp-id').value        = empId;
+  document.getElementById('edit-emp-name-field').value = emp.name;
+  document.getElementById('edit-emp-pin-field').value  = emp.pin;
+  document.getElementById('edit-emp-rate-field').value = emp.hourly_rate || '';
+  hideAlert('edit-emp-alert');
+  document.getElementById('edit-emp-modal').classList.remove('hidden');
+}
+
+async function saveEditEmployee() {
+  var id   = document.getElementById('edit-emp-id').value;
+  var name = document.getElementById('edit-emp-name-field').value.trim();
+  var pin  = document.getElementById('edit-emp-pin-field').value.trim();
+  var rate = parseFloat(document.getElementById('edit-emp-rate-field').value);
+  if (!name||!pin) { showAlert('edit-emp-alert','Name and PIN required.','error'); return; }
+  if (!/^\d{4}$/.test(pin)) { showAlert('edit-emp-alert','PIN must be 4 digits.','error'); return; }
+  if (isNaN(rate)||rate<=0) { showAlert('edit-emp-alert','Enter a valid rate.','error'); return; }
+
+  loading(true, 'Saving...');
+  var data = await api('PUT', '/employees', { businessId: state.businessId, employeeId: id, name:name, pin:pin, hourlyRate:rate });
+  loading(false);
+
+  if (data.error) { showAlert('edit-emp-alert', data.error, 'error'); return; }
+  document.getElementById('edit-emp-modal').classList.add('hidden');
+  await loadEmployees();
+  renderEmployeeList();
+}
+
+// ============================================================
+// EDIT ENTRY MODAL
+// ============================================================
+function openEditModal(entryId) {
+  var entry = null;
+  for (var i=0; i<state.todayEntries.length; i++) {
+    if (state.todayEntries[i].id===entryId) { entry=state.todayEntries[i]; break; }
+  }
+  if (!entry) return;
+  function tsToTime(ts) {
+    if (!ts) return '';
+    var d = new Date(Number(ts));
+    return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  }
+  document.getElementById('edit-entry-id').value    = entryId;
+  document.getElementById('edit-emp-name').value     = entry.employee_name;
+  document.getElementById('edit-date').value         = entry.date;
+  document.getElementById('edit-clock-in').value    = tsToTime(entry.clock_in);
+  document.getElementById('edit-clock-out').value   = tsToTime(entry.clock_out);
+  document.getElementById('edit-break-start').value = tsToTime(entry.break_start);
+  document.getElementById('edit-break-end').value   = tsToTime(entry.break_end);
+  document.getElementById('edit-note').value         = entry.manager_note || '';
+  hideAlert('edit-alert');
+  document.getElementById('edit-modal').classList.remove('hidden');
+}
+
+async function saveEditEntry() {
+  var id      = document.getElementById('edit-entry-id').value;
+  var note    = document.getElementById('edit-note').value.trim();
+  var dateStr = document.getElementById('edit-date').value;
+  if (!note) { showAlert('edit-alert','Manager note required.','error'); return; }
+
+  function toTs(d,t) { if(!t) return null; return new Date(d+'T'+t+':00').getTime(); }
+  var ci = toTs(dateStr, document.getElementById('edit-clock-in').value);
+  var co = toTs(dateStr, document.getElementById('edit-clock-out').value);
+  var bs = toTs(dateStr, document.getElementById('edit-break-start').value);
+  var be = toTs(dateStr, document.getElementById('edit-break-end').value);
+
+  if (ci && co && co<=ci) { showAlert('edit-alert','Clock out must be after clock in.','error'); return; }
+  var brk = (bs && be && be>bs) ? Math.round((be-bs)/60000) : 0;
+
+  loading(true, 'Saving...');
+  var data = await api('PUT', '/entries', { entryId:id, businessId:state.businessId, date:dateStr, clockIn:ci, clockOut:co, breakStart:bs, breakEnd:be, totalBreakMinutes:brk, managerNote:note });
+  loading(false);
+
+  if (data.error) { showAlert('edit-alert', data.error, 'error'); return; }
+  document.getElementById('edit-modal').classList.add('hidden');
+  renderToday(); renderWeekly(); renderPayroll();
+}
+
+// ============================================================
+// ADD ENTRY MODAL
+// ============================================================
+function openAddEntryModal() {
+  var sel = document.getElementById('add-entry-emp');
+  sel.innerHTML = '<option value="">Select employee...</option>';
+  for (var i=0; i<state.employees.length; i++) {
+    var opt = document.createElement('option');
+    opt.value = state.employees[i].id;
+    opt.textContent = state.employees[i].name;
+    sel.appendChild(opt);
+  }
+  document.getElementById('add-entry-date').value        = todayStr();
+  document.getElementById('add-entry-clock-in').value    = '';
+  document.getElementById('add-entry-clock-out').value   = '';
+  document.getElementById('add-entry-break-start').value = '';
+  document.getElementById('add-entry-break-end').value   = '';
+  document.getElementById('add-entry-note').value        = '';
+  hideAlert('add-entry-alert');
+  document.getElementById('add-entry-modal').classList.remove('hidden');
+}
+
+async function saveAddEntry() {
+  var empId   = document.getElementById('add-entry-emp').value;
+  var dateStr = document.getElementById('add-entry-date').value;
+  var note    = document.getElementById('add-entry-note').value.trim();
+  if (!empId)   { showAlert('add-entry-alert','Select an employee.','error'); return; }
+  if (!dateStr) { showAlert('add-entry-alert','Date required.','error'); return; }
+  if (!document.getElementById('add-entry-clock-in').value) { showAlert('add-entry-alert','Clock in time required.','error'); return; }
+  if (!note)    { showAlert('add-entry-alert','Manager note required.','error'); return; }
+
+  var empName = '';
+  for (var i=0; i<state.employees.length; i++) {
+    if (state.employees[i].id===empId) { empName=state.employees[i].name; break; }
+  }
+
+  function toTs(d,t) { if(!t) return null; return new Date(d+'T'+t+':00').getTime(); }
+  var ci = toTs(dateStr, document.getElementById('add-entry-clock-in').value);
+  var co = toTs(dateStr, document.getElementById('add-entry-clock-out').value);
+  var bs = toTs(dateStr, document.getElementById('add-entry-break-start').value);
+  var be = toTs(dateStr, document.getElementById('add-entry-break-end').value);
+  var brk = (bs && be && be>bs) ? Math.round((be-bs)/60000) : 0;
+
+  loading(true, 'Saving...');
+  var data = await api('POST', '/entries/add', { businessId:state.businessId, employeeId:empId, employeeName:empName, date:dateStr, clockIn:ci, clockOut:co, breakStart:bs, breakEnd:be, totalBreakMinutes:brk, managerNote:note });
+  loading(false);
+
+  if (data.error) { showAlert('add-entry-alert', data.error, 'error'); return; }
+  document.getElementById('add-entry-modal').classList.add('hidden');
+  renderToday(); renderWeekly(); renderPayroll();
+}
+
+// ============================================================
+// CSV EXPORTS
+// ============================================================
+async function exportTimesheetCSV() {
+  var weekStart = new Date(document.getElementById('week-start-input').value + 'T00:00:00');
+  var weekEnd   = new Date(weekStart); weekEnd.setDate(weekEnd.getDate()+6); weekEnd.setHours(23,59,59,999);
+  loading(true,'Building CSV...');
+  var data = await api('GET', '/entries?businessId='+state.businessId+'&weekStart='+weekStart.toISOString().split('T')[0]+'&weekEnd='+weekEnd.toISOString().split('T')[0]);
+  loading(false);
+  var entries = data.entries || [];
+  if (entries.length===0) { alert('No entries for this week.'); return; }
+
+  var rows = [['Employee','Date','Clock In','Clock Out','Break Start','Break End','Break Mins','Hours','Edited','Note']];
+  for (var i=0; i<entries.length; i++) {
+    var e=entries[i];
+    rows.push(['"'+e.employee_name+'"', e.date, fmtTime(e.clock_in), fmtTime(e.clock_out), fmtTime(e.break_start), fmtTime(e.break_end), e.total_break_minutes||0, calcHours(e).toFixed(2), e.edited?'Yes':'No', '"'+(e.manager_note||'').replace(/"/g,'""')+'"']);
+  }
+  showCSVScreen(rows, 'timesheet_'+weekStart.toISOString().split('T')[0]+'.csv');
+}
+
+async function exportPayrollCSV() {
+  var weekStart = new Date(document.getElementById('payroll-week-input').value + 'T00:00:00');
+  var weekEnd   = new Date(weekStart); weekEnd.setDate(weekEnd.getDate()+6); weekEnd.setHours(23,59,59,999);
+  loading(true,'Building CSV...');
+  var data = await api('GET', '/entries?businessId='+state.businessId+'&weekStart='+weekStart.toISOString().split('T')[0]+'&weekEnd='+weekEnd.toISOString().split('T')[0]);
+  loading(false);
+  var entries = data.entries || [];
+
+  var seenIds = [];
+  for (var i=0; i<entries.length; i++) {
+    if (seenIds.indexOf(entries[i].employee_id)===-1) seenIds.push(entries[i].employee_id);
+  }
+  if (seenIds.length===0) { alert('No payroll data.'); return; }
+
+  var rows = [['Employee','Rate','Total Hrs','Reg Hrs','OT Hrs','Gross','Fed Tax','SS','Medicare','MI State','Deductions','Net Pay']];
+  for (var j=0; j<seenIds.length; j++) {
+    var emp=null;
+    for (var k=0; k<state.employees.length; k++) {
+      if (state.employees[k].id===seenIds[j]) { emp=state.employees[k]; break; }
+    }
+    if (!emp) continue;
+    var p=calcPayroll(seenIds[j],entries,emp.hourly_rate||0);
+    rows.push(['"'+emp.name+'"',(emp.hourly_rate||0).toFixed(2),p.total.toFixed(2),p.reg.toFixed(2),p.ot.toFixed(2),p.gross.toFixed(2),p.fed.toFixed(2),p.ss.toFixed(2),p.med.toFixed(2),p.mi.toFixed(2),p.deduct.toFixed(2),p.net.toFixed(2)]);
+  }
+  showCSVScreen(rows, 'payroll_'+weekStart.toISOString().split('T')[0]+'.csv');
+}
+
+function showCSVScreen(rows, filename) {
+  var csv = '';
+  for (var i=0; i<rows.length; i++) csv += rows[i].join(',') + '\n';
+  document.getElementById('csv-filename-label').textContent = filename;
+  document.getElementById('csv-text-area').value = csv;
+  showScreen('screen-csv');
+}
+
+function selectAllCSV() {
+  var ta = document.getElementById('csv-text-area');
+  ta.focus(); ta.select(); ta.setSelectionRange(0,99999);
+}
+
+// ============================================================
+// SETTINGS
+// ============================================================
+async function changeManagerPassword() {
+  var p1 = document.getElementById('new-mgr-pass').value;
+  var p2 = document.getElementById('new-mgr-pass2').value;
+  if (!p1||p1.length<6) { showAlert('settings-alert','At least 6 characters.','error'); return; }
+  if (p1!==p2)          { showAlert('settings-alert','Passwords do not match.','error'); return; }
+
+  loading(true,'Saving...');
+  var data = await api('PUT', '/settings', { businessId: state.businessId, managerPassword: p1 });
+  loading(false);
+
+  if (data.error) { showAlert('settings-alert', data.error, 'error'); return; }
+  state.managerPassword = p1;
+  saveSession();
+  document.getElementById('new-mgr-pass').value='';
+  document.getElementById('new-mgr-pass2').value='';
+  showAlert('settings-alert','Password updated.','success');
+  setTimeout(function() { hideAlert('settings-alert'); }, 3000);
+}
+
+// ============================================================
+// STARTUP — check for saved session
+// ============================================================
+window.onload = async function() {
+  if (loadSession() && state.businessId) {
+    loading(true, 'Loading your account...');
+    try {
+      await loadEmployees();
+      loading(false);
+      goToPin();
+    } catch(e) {
+      loading(false);
+      showScreen('screen-landing');
+    }
+  } else {
+    showScreen('screen-landing');
+  }
+};
+</script>
+</body>
+</html>
