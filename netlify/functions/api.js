@@ -70,7 +70,7 @@ exports.handler = async (event) => {
       if (existing) return respond(400, { error: 'An account with that email already exists.' });
 
       // Create Stripe customer
-      const customer = await stripe.customers.create({
+      let stripeCustomerId = null; let stripeSubscriptionId = null; try { const customer = await stripe.customers.create({
         email: email.toLowerCase(),
         name: businessName,
         metadata: { businessName }
@@ -93,8 +93,8 @@ exports.handler = async (event) => {
           owner_email: email.toLowerCase(),
           owner_password_hash: hashPassword(password),
           manager_password: 'manager123',
-          stripe_customer_id: customer.id,
-          stripe_subscription_id: subscription.id,
+          stripe_customer_id: stripeCustomerId,
+          stripe_subscription_id: stripeSubscriptionId,
           subscription_status: 'trialing'
         })
         .select()
